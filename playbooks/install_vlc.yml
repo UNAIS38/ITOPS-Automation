@@ -1,0 +1,21 @@
+---
+- name: Install VLC Media Player
+  hosts: all
+  gather_facts: false
+
+  tasks:
+    - name: Create Temp directory
+      ansible.windows.win_file:
+        path: C:\Temp
+        state: directory
+
+    - name: Download VLC installer
+      ansible.windows.win_get_url:
+        url: https://get.videolan.org/vlc/3.0.21/win64/vlc-3.0.21-win64.exe
+        dest: C:\Temp\vlc.exe
+
+    - name: Install VLC silently
+      ansible.windows.win_package:
+        path: C:\Temp\vlc.exe
+        arguments: /S
+        state: present
