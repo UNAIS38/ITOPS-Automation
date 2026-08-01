@@ -1,0 +1,28 @@
+---
+- name: Windows Employee Onboarding
+  hosts: windows
+  gather_facts: no
+
+  tasks:
+
+    - name: Test Windows Connectivity
+      ansible.windows.win_ping:
+
+    - name: Create Company Folder
+      ansible.windows.win_file:
+        path: C:\Company
+        state: directory
+
+    - name: Create Welcome File
+      ansible.windows.win_copy:
+        dest: C:\Company\Welcome.txt
+        content: |
+          Welcome to the Company
+
+          This laptop has been configured automatically using Ansible AWX.
+
+          IT Team
+
+    - name: Show Completion Message
+      ansible.builtin.debug:
+        msg: "Windows Onboarding Completed Successfully"
