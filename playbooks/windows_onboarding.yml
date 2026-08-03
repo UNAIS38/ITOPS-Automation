@@ -1,6 +1,6 @@
 ---
 - name: Windows Employee Onboarding
-  hosts: windows
+  hosts: all
   gather_facts: no
 
   tasks:
