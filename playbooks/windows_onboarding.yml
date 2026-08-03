@@ -1,28 +1,99 @@
 ---
 - name: Windows Employee Onboarding
   hosts: all
-  gather_facts: no
+  gather_facts: false
 
   tasks:
 
-    - name: Test Windows Connectivity
+    - name: Test Windows connectivity
       ansible.windows.win_ping:
 
-    - name: Create Company Folder
+    - name: Create company folder
       ansible.windows.win_file:
         path: C:\Company
         state: directory
 
-    - name: Create Welcome File
+    - name: Create welcome file
       ansible.windows.win_copy:
         dest: C:\Company\Welcome.txt
         content: |
           Welcome to the Company
 
+          Employee Name: {{ employee_name | default('Not provided') }}
+          Employee ID: {{ employee_id | default('Not provided') }}
+          Department: {{ department | default('Not provided') }}
+          Windows Username: {{ windows_username | default('Not provided') }}
+
           This laptop has been configured automatically using Ansible AWX.
 
           IT Team
 
-    - name: Show Completion Message
+    - name: Create Windows login user
+      ansible.windows.win_user:
+        name: "{{ windows_username }}"
+        password: "{{ windows_password }}"
+        state: present
+        password_never_expires: true
+        user_cannot_change_password: false
+      no_log: true
+      when:
+        - windows_username is defined
+        - windows_username | length > 0
+        - windows_password is defined
+        - windows_password | length > 0
+
+    - name: Install Google Chrome
+      ansible.windows.win_powershell:
+        script: |
+          $ErrorActionPreference = "Stop"
+
+          $chromePath64 = "C:\Program Files\Google\Chrome\Application\chrome.exe"
+          $chromePath32 = "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+
+          if ((Test-Path $chromePath64) -or (Test-Path $chromePath32)) {
+              Write-Output "Google Chrome is already installed."
+              exit 0
+          }
+
+          $installer = "$env:TEMP\ChromeSetup.exe"
+
+          Invoke-WebRequest `
+              -Uri "https://dl.google.com/chrome/install/latest/chrome_installer.exe" `
+              -OutFile $installer `
+              -UseBasicParsing
+
+          Start-Process `
+              -FilePath $installer `
+              -ArgumentList "/silent", "/install" `
+              -Wait `
+              -NoNewWindow
+
+          Remove-Item $installer -Force -ErrorAction SilentlyContinue
+
+          if ((Test-Path $chromePath64) -or (Test-Path $chromePath32)) {
+              Write-Output "Google Chrome installed successfully."
+          }
+          else {
+              throw "Google Chrome installation could not be verified."
+          }
+      when: "'Google Chrome' in (selected_applications | default([]))"
+
+    - name: Show Bitdefender status
       ansible.builtin.debug:
-        msg: "Windows Onboarding Completed Successfully"
+        msg: "Bitdefender was selected, but its installer is not configured yet."
+      when: "'Bitdefender' in (selected_applications | default([]))"
+
+    - name: Show Scalefusion status
+      ansible.builtin.debug:
+        msg: "Scalefusion was selected, but its installer is not configured yet."
+      when: "'Scalefusion' in (selected_applications | default([]))"
+
+    - name: Restart Windows computer
+      ansible.windows.win_reboot:
+        reboot_timeout: 900
+        post_reboot_delay: 30
+      when: restart_computer | default(false) | bool
+
+    - name: Show completion message
+      ansible.builtin.debug:
+        msg: "Windows onboarding completed successfully."
