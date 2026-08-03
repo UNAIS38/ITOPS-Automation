@@ -28,19 +28,42 @@
 
           IT Team
 
-    - name: Create Windows login user
+    - name: Create Windows login user and add to Users group
       ansible.windows.win_user:
         name: "{{ windows_username }}"
+        fullname: "{{ employee_name }}"
+        description: "{{ department }} Employee"
         password: "{{ windows_password }}"
         state: present
+        account_disabled: false
         password_never_expires: true
         user_cannot_change_password: false
+        groups:
+          - Users
+        groups_action: add
       no_log: true
-      when:
-        - windows_username is defined
-        - windows_username | length > 0
-        - windows_password is defined
-        - windows_password | length > 0
+
+    - name: Verify created Windows user
+      ansible.windows.win_powershell:
+        script: |
+          $userName = "{{ windows_username }}"
+
+          $user = Get-LocalUser -Name $userName -ErrorAction Stop
+
+          $isUsersMember = Get-LocalGroupMember -Group "Users" |
+              Where-Object {
+                  $_.Name -eq "$env:COMPUTERNAME\$userName"
+              }
+
+          if (-not $user.Enabled) {
+              throw "The new Windows user account is disabled."
+          }
+
+          if (-not $isUsersMember) {
+              throw "The new Windows user is not a member of the local Users group."
+          }
+
+          Write-Output "Windows user '$userName' exists, is enabled, and belongs to the Users group."
 
     - name: Install Google Chrome
       ansible.windows.win_powershell:
@@ -96,4 +119,10 @@
 
     - name: Show completion message
       ansible.builtin.debug:
-        msg: "Windows onboarding completed successfully."
+        msg:
+          - "Windows onboarding completed successfully."
+          - "Employee: {{ employee_name }}"
+          - "Laptop: {{ inventory_hostname }}"
+          - "Windows user: {{ windows_username }}"
+          - "Applications selected: {{ selected_applications | default([]) }}"
+          - "Restart selected: {{ restart_computer | default(false) }}"
