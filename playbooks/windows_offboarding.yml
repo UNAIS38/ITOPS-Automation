@@ -1,0 +1,82 @@
+---
+- name: Windows Employee Offboarding
+  hosts: all
+  gather_facts: false
+
+  tasks:
+
+    - name: Test Windows connectivity
+      ansible.windows.win_ping:
+
+    - name: Check whether Windows user exists
+      ansible.windows.win_powershell:
+        script: |
+          $userName = "{{ windows_username }}"
+
+          $user = Get-LocalUser `
+              -Name $userName `
+              -ErrorAction SilentlyContinue
+
+          if ($null -eq $user) {
+              Write-Output "User does not exist."
+          }
+          else {
+              Write-Output "User exists."
+          }
+      register: user_check
+
+    - name: Disable Windows user
+      ansible.windows.win_user:
+        name: "{{ windows_username }}"
+        account_disabled: true
+        state: present
+      when:
+        - offboarding_action | default("Disable") == "Disable"
+
+    - name: Delete Windows user
+      ansible.windows.win_user:
+        name: "{{ windows_username }}"
+        state: absent
+      when:
+        - offboarding_action | default("Disable") == "Delete"
+
+    - name: Remove Windows user profile
+      ansible.windows.win_powershell:
+        script: |
+          $userName = "{{ windows_username }}"
+
+          $profile = Get-CimInstance Win32_UserProfile |
+              Where-Object {
+                  $_.LocalPath -eq "C:\Users\$userName"
+              }
+
+          if ($profile) {
+              Remove-CimInstance -InputObject $profile
+              Write-Output "User profile removed."
+          }
+          else {
+              Write-Output "User profile not found."
+          }
+      when: remove_user_profile | default(false) | bool
+
+    - name: Remove company folder
+      ansible.windows.win_file:
+        path: C:\Company
+        state: absent
+      when: remove_company_files | default(false) | bool
+
+    - name: Restart Windows computer
+      ansible.windows.win_reboot:
+        reboot_timeout: 900
+        post_reboot_delay: 30
+      when: restart_computer | default(false) | bool
+
+    - name: Show offboarding completion message
+      ansible.builtin.debug:
+        msg:
+          - "Windows offboarding completed successfully."
+          - "Employee: {{ employee_name }}"
+          - "Employee ID: {{ employee_id }}"
+          - "Laptop: {{ inventory_hostname }}"
+          - "Windows user: {{ windows_username }}"
+          - "Action: {{ offboarding_action }}"
