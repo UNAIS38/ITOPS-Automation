@@ -79,13 +79,11 @@
 
       when: "'Google Chrome' in selected_applications"
 
-    - name: Windows Update Search
+    - name: Install Windows Updates
       ansible.windows.win_updates:
-        category_names:
-          - SecurityUpdates
-          - CriticalUpdates
-          - UpdateRollups
-        state: searched
+        category_names: '*'
+        state: installed
+        reboot: true
       register: windows_update_result
       when: "'Windows Update' in selected_applications"
 
@@ -93,6 +91,8 @@
       ansible.builtin.debug:
         msg:
           - "Updates Found : {{ windows_update_result.found_update_count | default(0) }}"
+          - "Updates Installed : {{ windows_update_result.installed_update_count | default(0) }}"
+          - "Updates Failed : {{ windows_update_result.failed_update_count | default(0) }}"
           - "Restart Required : {{ windows_update_result.reboot_required | default(false) }}"
       when: "'Windows Update' in selected_applications"
 
