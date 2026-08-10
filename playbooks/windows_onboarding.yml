@@ -43,11 +43,13 @@
           - Users
         groups_action: add
       no_log: true
+      when: create_windows_user | default(false) | bool
 
     - name: Verify Windows user
       ansible.windows.win_powershell:
         script: |
           Get-LocalUser "{{ windows_username }}"
+      when: create_windows_user | default(false) | bool
 
     - name: Install Google Chrome
       ansible.windows.win_powershell:
