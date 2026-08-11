@@ -1,0 +1,15 @@
+---
+- name: Restart Windows Laptop
+  hosts: windows
+  gather_facts: false
+
+  tasks:
+    - name: Restart selected Windows laptop
+      ansible.windows.win_reboot:
+        msg: "Restart initiated by IT Automation"
+        pre_reboot_delay: 10
+        post_reboot_delay: 15
+        reboot_timeout: 600
+
+    - name: Verify laptop is online
+      ansible.windows.win_ping:
