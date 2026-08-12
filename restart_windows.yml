@@ -1,6 +1,6 @@
 ---
 - name: Restart Windows Laptop
-  hosts: windows
+  hosts: all
   gather_facts: false
 
   tasks:
